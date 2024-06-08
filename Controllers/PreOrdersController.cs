@@ -1,73 +1,108 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using DD_FootwearAPI.Data;
 using DD_FootwearAPI.Models;
+using DD_FootwearAPI.Services;
+using System;
+using System.Collections.Generic;
 
 namespace DD_FootwearAPI.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class PreOrdersController : ControllerBase
     {
-        private readonly DDContext _context;
+        private readonly IPreOrderService _preOrderService;
 
-        public PreOrdersController(DDContext context)
+        public PreOrdersController(IPreOrderService preOrderService)
         {
-            _context = context;
+            _preOrderService = preOrderService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<PreOrder>>> GetPreOrders()
+        public IActionResult GetAllPreOrders()
         {
-            return await _context.PreOrders.ToListAsync();
+            try
+            {
+                var preOrders = _preOrderService.GetAllPreOrders();
+                return Ok(preOrders);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<PreOrder>> GetPreOrder(int id)
+        public IActionResult GetPreOrderById(int id)
         {
-            var preOrder = await _context.PreOrders.FindAsync(id);
-
-            if (preOrder == null)
+            try
             {
-                return NotFound();
+                var preOrder = _preOrderService.GetPreOrderById(id);
+                if (preOrder == null)
+                {
+                    return NotFound();
+                }
+                return Ok(preOrder);
             }
-
-            return preOrder;
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
         [HttpPost]
-        public async Task<ActionResult<PreOrder>> PostPreOrder(PreOrder preOrder)
+        public IActionResult CreatePreOrder(PreOrder preOrder)
         {
-            // Check if the productID exists in the Products table
-            var productExists = await _context.Products.AnyAsync(p => p.ProductID == preOrder.ProductID);
-            if (!productExists)
+            try
             {
-                return NotFound("Item not found");
+                _preOrderService.CreatePreOrder(preOrder);
+                return CreatedAtAction(nameof(GetPreOrderById), new { id = preOrder.PreOrderID }, preOrder);
             }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
 
-            _context.PreOrders.Add(preOrder);
-            await _context.SaveChangesAsync();
+        [HttpPut("{id}")]
+        public IActionResult UpdatePreOrder(int id, PreOrder preOrder)
+        {
+            try
+            {
+                var existingPreOrder = _preOrderService.GetPreOrderById(id);
+                if (existingPreOrder == null)
+                {
+                    return NotFound();
+                }
 
-            return CreatedAtAction("GetPreOrder", new { id = preOrder.PreOrderID }, preOrder);
+                preOrder.PreOrderID = id;
+                _preOrderService.UpdatePreOrder(preOrder.PreOrderID, preOrder);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeletePreOrder(int id)
+        public IActionResult DeletePreOrder(int id)
         {
-            var preOrder = await _context.PreOrders.FindAsync(id);
-            if (preOrder == null)
+            try
             {
-                return NotFound();
+                var preOrder = _preOrderService.GetPreOrderById(id);
+                if (preOrder == null)
+                {
+                    return NotFound();
+                }
+
+                _preOrderService.DeletePreOrder(id);
+                return NoContent();
             }
-
-            _context.PreOrders.Remove(preOrder);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
     }
 }

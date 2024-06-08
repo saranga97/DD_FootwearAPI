@@ -10,5 +10,6 @@ namespace DD_FootwearAPI.Data
         public DbSet<Product> Products { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<PreOrder> PreOrders { get; set; }
+        public DbSet<User> Users { get; set; } // Add this DbSet for the User entity
     }
 }

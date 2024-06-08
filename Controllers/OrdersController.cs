@@ -1,73 +1,117 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using DD_FootwearAPI.Data;
 using DD_FootwearAPI.Models;
+using DD_FootwearAPI.Services;
+using System;
+using System.Collections.Generic;
 
 namespace DD_FootwearAPI.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class OrdersController : ControllerBase
     {
-        private readonly DDContext _context;
+        private readonly IOrderService _orderService;
 
-        public OrdersController(DDContext context)
+        public OrdersController(IOrderService orderService)
         {
-            _context = context;
+            _orderService = orderService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Order>>> GetOrders()
+        public IActionResult GetAllOrders()
         {
-            return await _context.Orders.ToListAsync();
+            try
+            {
+                var orders = _orderService.GetAllOrders();
+                return Ok(orders);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Order>> GetOrder(int id)
+        public IActionResult GetOrderById(int id)
         {
-            var order = await _context.Orders.FindAsync(id);
-
-            if (order == null)
+            try
             {
-                return NotFound();
+                var order = _orderService.GetOrderById(id);
+                if (order == null)
+                {
+                    return NotFound();
+                }
+                return Ok(order);
             }
-
-            return order;
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
         [HttpPost]
-        public async Task<ActionResult<Order>> PostOrder(Order order)
+        public IActionResult CreateOrder(Order order)
         {
-            // Check if the productID exists in the Products table
-            var productExists = await _context.Products.AnyAsync(p => p.ProductID == order.ProductID);
-            if (!productExists)
+            try
             {
-                return NotFound("Item not found");
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                _orderService.CreateOrder(order);
+                return CreatedAtAction(nameof(GetOrderById), new { id = order.OrderID }, order);
             }
-
-            _context.Orders.Add(order);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetOrder", new { id = order.OrderID }, order);
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
+        [HttpPut("{id}")]
+        public IActionResult UpdateOrder(int id, Order order)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var existingOrder = _orderService.GetOrderById(id);
+                if (existingOrder == null)
+                {
+                    return NotFound();
+                }
+
+                order.OrderID = id;
+                _orderService.UpdateOrder(id, order);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteOrder(int id)
+        public IActionResult DeleteOrder(int id)
         {
-            var order = await _context.Orders.FindAsync(id);
-            if (order == null)
+            try
             {
-                return NotFound();
+                var order = _orderService.GetOrderById(id);
+                if (order == null)
+                {
+                    return NotFound();
+                }
+
+                _orderService.DeleteOrder(id);
+                return NoContent();
             }
-
-            _context.Orders.Remove(order);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
     }
 }
